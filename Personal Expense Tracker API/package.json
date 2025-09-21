@@ -1,0 +1,22 @@
+{
+  "name": "personal-expense-tracker-api",
+  "version": "1.0.0",
+  "description": "A RESTful API for a Personal Expense Tracker application built with Node.js, Express, and MongoDB.",
+  "main": "server.js",
+  "author": "MeowDev-101",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.18.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
