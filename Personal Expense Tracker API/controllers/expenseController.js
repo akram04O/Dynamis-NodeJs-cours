@@ -1,102 +1,87 @@
 import { Expense } from "../models/expense.js";
-import { Budget } from "../models/Budget.js";
 
 export const createExpense = async (req, res) => {
-  const { amount, category, date, description } = req.body;
-
   try {
+    const { amount, category, date, description } = req.body;
+
+    if (!amount || !category) {
+      return res.status(400).json({ message: "Amount and category are required" });
+    }
+
     const expense = new Expense({
-      userId: req.user.id, 
+      userId: req.user.id,
       amount,
       category,
-      date,
-      description,
+      date: date || new Date(),
+      description
     });
 
     await expense.save();
-
-    const checkMonth = month(month);
-    const budget = await Budget.findOne({ user: req.user.id, month: checkMonth });
-    if (budget) {
-      const totalExpenses = await Expense.aggregate([
-        { $match: { userId: req.user.id, date: { $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1), $lt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1) } } },
-        { $group: { _id: null, total: { $sum: "$amount" } }},
-      ]);
-
-      if (totalExpenses[0]?.total > budget.amount) {
-        return res.status(400).json({ message: "Budget exceeded" });
-      }
-    }
-
     res.status(201).json(expense);
   } catch (error) {
-    res.status(500).json({
-      message: "Failed to create expense",
-      error: error.message,
-    });
+    console.error('Create expense error:', error);
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
 export const getExpenses = async (req, res) => {
   try {
-    const expenses = await Expense.find({ userId: req.user.id }).sort({ date: -1 });
-    res.status(200).json(expenses);
-  } catch (error) {
-    res.status(500).json({
-      message: "Failed to fetch expenses",
-      error: error.message,
-    });
-  }
-};
+    const { startDate, endDate, category } = req.query;
+    let query = { userId: req.user.id };
 
-
-export const getExpenseByCategoryAndDate = async (req, res) => {
-  try {
-    const { category, startDate, endDate } = req.query;
-
-    let filter = { userId: req.user.id };
-
-    if (category) filter.category = category;
     if (startDate && endDate) {
-      filter.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+      query.date = { 
+        $gte: new Date(startDate), 
+        $lte: new Date(endDate) 
+      };
     }
 
-    const expenses = await Expense.find(filter).sort({ date: -1 });
+    if (category) {
+      query.category = category;
+    }
+
+    const expenses = await Expense.find(query).sort({ date: -1 });
     res.status(200).json(expenses);
   } catch (error) {
-    res.status(500).json({
-      message: "Failed to fetch expenses",
-      error: error.message,
-    });
+    console.error('Get expenses error:', error);
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
 export const updateExpense = async (req, res) => {
   try {
-    const expense = await Expense.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user.id },
-      req.body,
-      { new: true }
-    );
+    const { amount, category, date, description } = req.body;
+    const { id } = req.params;
+
+    const expense = await Expense.findOne({ 
+      _id: id, 
+      userId: req.user.id 
+    });
 
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
 
+    if (amount) expense.amount = amount;
+    if (category) expense.category = category;
+    if (date) expense.date = date;
+    if (description) expense.description = description;
+
+    await expense.save();
     res.status(200).json(expense);
   } catch (error) {
-    res.status(500).json({
-      message: "Failed to update expense",
-      error: error.message,
-    });
+    console.error('Update expense error:', error);
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
 export const deleteExpense = async (req, res) => {
   try {
-    const expense = await Expense.findOneAndDelete({
-      _id: req.params.id,
-      userId: req.user.id,
+    const { id } = req.params;
+
+    const expense = await Expense.findOneAndDelete({ 
+      _id: id, 
+      userId: req.user.id 
     });
 
     if (!expense) {
@@ -105,44 +90,37 @@ export const deleteExpense = async (req, res) => {
 
     res.status(200).json({ message: "Expense deleted successfully" });
   } catch (error) {
-    res.status(500).json({
-      message: "Failed to delete expense",
-      error: error.message,
-    });
+    console.error('Delete expense error:', error);
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
-export const getExpenseMonthlySummary = async (req, res) => {
+export const getExpenseStats = async (req, res) => {
   try {
     const { month, year } = req.query;
-
-    if (!month || !year) {
-      return res.status(400).json({ message: "Please provide month and year" });
-    }
-
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 1);
-
-    const expenses = await Expense.aggregate([
+    
+    const stats = await Expense.aggregate([
       {
         $match: {
-          userId: req.user._id,
-          date: { $gte: start, $lt: end }
+          userId: req.user.id,
+          date: {
+            $gte: new Date(year, month - 1, 1),
+            $lt: new Date(year, month, 1)
+          }
         }
       },
       {
         $group: {
           _id: "$category",
-          total: { $sum: "$amount" }
+          total: { $sum: "$amount" },
+          count: { $sum: 1 }
         }
       }
     ]);
 
-    res.status(200).json(expenses);
+    res.status(200).json(stats);
   } catch (error) {
-    res.status(500).json({
-      message: "Failed to generate monthly summary",
-      error: error.message
-    });
+    console.error('Get expense stats error:', error);
+    res.status(500).json({ message: "Server Error" });
   }
 };
