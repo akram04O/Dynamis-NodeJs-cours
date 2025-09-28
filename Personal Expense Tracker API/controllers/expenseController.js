@@ -1,4 +1,5 @@
 import { Expense } from "../models/expense.js";
+import { Budget } from "../models/budget.js";
 
 export const createExpense = async (req, res) => {
   try {
@@ -7,6 +8,9 @@ export const createExpense = async (req, res) => {
     if (!amount || !category) {
       return res.status(400).json({ message: "Amount and category are required" });
     }
+    const budget = await Budget.findOne({ user: req.user.id, category });
+    if (!budget) return res.status(400).json({ message: "Budget not found" });
+    if ( Expense.schema.path('category').cast(category) == Budget.schema.path('category').cast(category) && Expense.schema.path('amount').cast(amount) > Budget.schema.path('amount').cast(amount)) return res.status(400).json({ message: "Expense exceeds budget limit" });
 
     const expense = new Expense({
       userId: req.user.id,

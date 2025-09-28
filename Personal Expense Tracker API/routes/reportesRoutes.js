@@ -8,6 +8,6 @@ const router = Router();
 
 router.use(authMiddleware);
 
-router.get('/monthly/detailed/:month/:year', getDetailedMonthlyReport);
+router.get('/monthly/detailed/:id', getDetailedMonthlyReport);
 
 export default router;
